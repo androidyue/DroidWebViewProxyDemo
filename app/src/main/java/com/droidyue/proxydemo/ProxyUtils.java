@@ -11,8 +11,6 @@ import android.webkit.WebView;
 
 import org.apache.http.HttpHost;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -24,14 +22,15 @@ public class ProxyUtils {
     private static final String LOG_TAG = "ProxyUtils";
 
     
-    public static boolean setProxy(WebView webview, String host, int port ) {
-        if (Build.VERSION.SDK_INT <= 13) {
-            return setProxyPreICS(webview, host, port, false);
-        } else if (Build.VERSION.SDK_INT <= 15) {
+    public static boolean setProxy(WebView webview, String host, int port) {
+        int sdkInt = Build.VERSION.SDK_INT;
+        if (sdkInt < Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+            return setProxyPreICS(webview, host, port);
+        } else if (sdkInt < Build.VERSION_CODES.JELLY_BEAN) {
             return setProxyICS(webview, host, port);
-        } else if (Build.VERSION.SDK_INT <= 18) {
+        } else if (sdkInt < Build.VERSION_CODES.KITKAT) {
             return setProxyJB(webview, host, port);
-        } else if (Build.VERSION.SDK_INT <= 20) {
+        } else if (sdkInt < Build.VERSION_CODES.LOLLIPOP) {
             return setProxyKK(webview, host, port, "android.app.Application");
         } else {
             return setProxyLollipop(webview.getContext(), host, port);
@@ -41,7 +40,7 @@ public class ProxyUtils {
     public static boolean clearProxy(WebView webView) {
         int sdkInt = Build.VERSION.SDK_INT;
         if (sdkInt < Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-            return clearProxyICS(webView);
+            return  setProxyPreICS(webView, null,0);
         } else if (sdkInt < Build.VERSION_CODES.JELLY_BEAN) {
             return setProxyICS(webView, null, 0);
         } else if (sdkInt < Build.VERSION_CODES.KITKAT) {
@@ -53,13 +52,10 @@ public class ProxyUtils {
         }
     }
 
-    private static boolean clearProxyICS(WebView webView) {
-        return setProxyPreICS(webView, "", 0, true);
-    }
-    
-    private static boolean setProxyPreICS(WebView webView, String host, final int port, boolean shouldClear) {
+
+    private static boolean setProxyPreICS(WebView webView, String host, final int port) {
         HttpHost proxyServer ;
-        if (shouldClear) {
+        if (null == host) {
             proxyServer = null;
         } else {
             proxyServer = new HttpHost(host, port);
@@ -117,7 +113,6 @@ public class ProxyUtils {
         } finally {
             proxyHostField.setAccessible(temp);
         }
-
         Log.d(LOG_TAG, "Setting proxy with <= 3.2 API successful!");
         return true;
     }
@@ -127,10 +122,7 @@ public class ProxyUtils {
 
     @SuppressWarnings("all")
     private static boolean setProxyICS(WebView webview, String host, int port) {
-        try
-        {
-            Log.d(LOG_TAG, "Setting proxy with 4.0 API.");
-
+        try {
             Class jwcjb = Class.forName("android.webkit.JWebCoreJavaBridge");
             Class params[] = new Class[1];
             params[0] = Class.forName("android.net.ProxyProperties");
@@ -154,14 +146,10 @@ public class ProxyUtils {
             pparams[1] = int.class;
             pparams[2] = String.class;
             Constructor ppcont = ppclass.getConstructor(pparams);
-
             updateProxyInstance.invoke(sJavaBridge, ppcont.newInstance(host, port, null));
-
             Log.d(LOG_TAG, "Setting proxy with 4.0 API successful!");
             return true;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Log.e(LOG_TAG, "failed to set HTTP proxy: " + ex);
             return false;
         }
@@ -172,8 +160,6 @@ public class ProxyUtils {
      */
     @SuppressWarnings("all")
     private static boolean setProxyJB(WebView webview, String host, int port) {
-        Log.d(LOG_TAG, "Setting proxy with 4.1 - 4.3 API.");
-
         try {
             Class wvcClass = Class.forName("android.webkit.WebViewClassic");
             Class wvParams[] = new Class[1];
@@ -210,7 +196,6 @@ public class ProxyUtils {
             Log.e(LOG_TAG, "Setting proxy with >= 4.1 API failed with error: " + ex.getMessage());
             return false;
         }
-
         Log.d(LOG_TAG, "Setting proxy with 4.1 - 4.3 API successful!");
         return true;
     }
@@ -219,8 +204,6 @@ public class ProxyUtils {
     @SuppressLint("NewApi")
     @SuppressWarnings("all")
     private static boolean setProxyKK(WebView webView, String host, int port, String applicationClassName) {
-        Log.d(LOG_TAG, "Setting proxy with >= 4.4 API.");
-
         Context appContext = webView.getContext().getApplicationContext();
         if (null == host) {
             System.clearProperty("http.proxyHost");
@@ -262,51 +245,22 @@ public class ProxyUtils {
                     }
                 }
             }
-
             Log.d(LOG_TAG, "Setting proxy with >= 4.4 API successful!");
             return true;
         } catch (ClassNotFoundException e) {
-            StringWriter sw = new StringWriter();
-            e.printStackTrace(new PrintWriter(sw));
-            String exceptionAsString = sw.toString();
-            Log.v(LOG_TAG, e.getMessage());
-            Log.v(LOG_TAG, exceptionAsString);
+            e.printStackTrace();
         } catch (NoSuchFieldException e) {
-            StringWriter sw = new StringWriter();
-            e.printStackTrace(new PrintWriter(sw));
-            String exceptionAsString = sw.toString();
-            Log.v(LOG_TAG, e.getMessage());
-            Log.v(LOG_TAG, exceptionAsString);
+            e.printStackTrace();
         } catch (IllegalAccessException e) {
-            StringWriter sw = new StringWriter();
-            e.printStackTrace(new PrintWriter(sw));
-            String exceptionAsString = sw.toString();
-            Log.v(LOG_TAG, e.getMessage());
-            Log.v(LOG_TAG, exceptionAsString);
+            e.printStackTrace();
         } catch (IllegalArgumentException e) {
-            StringWriter sw = new StringWriter();
-            e.printStackTrace(new PrintWriter(sw));
-            String exceptionAsString = sw.toString();
-            Log.v(LOG_TAG, e.getMessage());
-            Log.v(LOG_TAG, exceptionAsString);
+            e.printStackTrace();
         } catch (NoSuchMethodException e) {
-            StringWriter sw = new StringWriter();
-            e.printStackTrace(new PrintWriter(sw));
-            String exceptionAsString = sw.toString();
-            Log.v(LOG_TAG, e.getMessage());
-            Log.v(LOG_TAG, exceptionAsString);
+            e.printStackTrace();
         } catch (InvocationTargetException e) {
-            StringWriter sw = new StringWriter();
-            e.printStackTrace(new PrintWriter(sw));
-            String exceptionAsString = sw.toString();
-            Log.v(LOG_TAG, e.getMessage());
-            Log.v(LOG_TAG, exceptionAsString);
+            e.printStackTrace();
         } catch (InstantiationException e) {
-            StringWriter sw = new StringWriter();
-            e.printStackTrace(new PrintWriter(sw));
-            String exceptionAsString = sw.toString();
-            Log.v(LOG_TAG, e.getMessage());
-            Log.v(LOG_TAG, exceptionAsString);
+            e.printStackTrace();
         }
         return false;
     }
@@ -322,8 +276,8 @@ public class ProxyUtils {
         }
         try {
             Context appContext = context.getApplicationContext();
-            Class applictionClass = Class.forName("android.app.Application");
-            Field mLoadedApkField = applictionClass.getDeclaredField("mLoadedApk");
+            Class applicationClass = Class.forName("android.app.Application");
+            Field mLoadedApkField = applicationClass.getDeclaredField("mLoadedApk");
             mLoadedApkField.setAccessible(true);
             Object mloadedApk = mLoadedApkField.get(appContext);
             Class loadedApkClass = Class.forName("android.app.LoadedApk");
